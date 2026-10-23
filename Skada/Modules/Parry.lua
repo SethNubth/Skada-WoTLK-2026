@@ -7,20 +7,18 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 	local classfmt = Skada.classcolors.format
 	local mode_cols = nil
 
-	local parrybosses = {
-		[10184] = true, -- Onyxia
-		[34797] = true, -- Icehowl
-		[34799] = true, -- Dreadscale
-		[35144] = true, -- Acidmaw
-		[36853] = true, -- Sindragosa
-		[36855] = true, -- Lady Deathwhisper
-		[39863] = true, -- Halion
-		[15932] = true, -- Gluth
-		[15989] = true, -- Sapphiron
-		[15990] = true, -- Kel'Thuzad
-		[33271] = true, -- General Vezax
+	-- Kade Fix Sindra P3 - Ice Tomb no cuenta como parry
+	local ICE_TOMB_IGNORE = {
+		[70157] = true,
+		[71057] = true,
+		[70126] = true,
 	}
 
+	local parrybosses = {
+		[10184] = true, [34797] = true, [34799] = true, [35144] = true,
+		[36853] = true, [36855] = true, [39863] = true, [15932] = true,
+		[15989] = true, [15990] = true, [33271] = true,
+	}
 	local DragonOnly = {
 		[10184] = true, [36853] = true, [39863] = true, [15989] = true,
 	}
@@ -77,7 +75,6 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 		actor.parrytargets = actor.parrytargets or {}
 		actor.parrytargets[dstName] = (actor.parrytargets[dstName] or 0) + 1
 
-		-- POR DEFECTO AVISAR EN BANDA CON TIEMPO
 		if M.parryannounce and set ~= Skada.total then
 			local msg = format("%s parreó a %s (%d) - %s [Parry %d]", dstName, actorname, actor.parrytargets[dstName] or 1, FormatTimeSeth(cTime), actor.parry)
 			Skada:SendChat(msg, M.parrychannel, "preset")
@@ -98,14 +95,19 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 	end
 
 	local function spell_missed(t)
-		if t.misstype == "PARRY" and t.dstName and is_parry_boss(t.dstName, t.dstGUID) then
-			local actorid, actorname, actorflags = Skada:FixMyPets(t.srcGUID, t.srcName, t.srcFlags)
-			Skada:DispatchSets(log_parry, actorname, actorid, actorflags, t.dstName, nil)
-		end
+		if t.misstype ~= "PARRY" or not t.dstName then return end
+		if not is_parry_boss(t.dstName, t.dstGUID) then return end
+		-- Kade Fix: Ignorar si el boss es Sindra y el spell es Tumba
+		if t.spellId and ICE_TOMB_IGNORE[t.spellId] then return end
+		if t.extraSpellId and ICE_TOMB_IGNORE[t.extraSpellId] then return end
+		local actorid, actorname, actorflags = Skada:FixMyPets(t.srcGUID, t.srcName, t.srcFlags)
+		Skada:DispatchSets(log_parry, actorname, actorid, actorflags, t.dstName, nil)
 	end
 
 	local function boss_damage_after_parry(t)
 		if not t.srcName or not is_parry_boss(t.srcName, t.srcGUID) then return end
+		-- Kade Fix: Si es daño de Tumba, no es haste
+		if t.spellId and ICE_TOMB_IGNORE[t.spellId] then return end
 		local amount = t.amount or 0
 		if amount <= 0 then return end
 		for actorname, info in pairs(lastParryInfo) do
@@ -156,8 +158,7 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 		if not total or total == 0 then return end
 		if win.metadata then win.metadata.maxvalue = 0 end
 		local nr = 0
-		local actors = set.actors
-		for actorname, actor in pairs(actors) do
+		for actorname, actor in pairs(set.actors) do
 			if win:show_actor(actor, set, true) and actor.parry then
 				nr = nr + 1
 				local d = win:actor(nr, actor, actor.enemy, actorname)
@@ -192,7 +193,6 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 	function mode:OnDisable() Skada:RemoveMode(self) end
 
 	function mode:OnInitialize()
-		-- POR DEFECTO TODO ACTIVADO Y AVISAR EN BANDA
 		M.parrychannel = M.parrychannel or "AUTO"
 		if M.parryannounce == nil then M.parryannounce = true end
 		if M.onlyDragons == nil then M.onlyDragons = true end
@@ -202,9 +202,9 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 		O.modules.args.Parry = {
 			type = "group", name = self.localeName, desc = format(L["Options for %s."], self.localeName),
 			args = {
-				header = {type = "description", name = self.localeName.." - SethNubth v3.2", fontSize = "large", image = [[Interface\ICONS\ability_parry]], imageWidth = 18, imageHeight = 18, imageCoords = Skada.cropTable, width = "full", order = 0},
+				header = {type = "description", name = self.localeName.." - SethNubth v3.2 - Fix Sindra P3", fontSize = "large", image = [[Interface\ICONS\ability_parry]], imageWidth = 18, imageHeight = 18, imageCoords = Skada.cropTable, width = "full", order = 0},
 				sep = {type = "description", name = " ", width = "full", order = 1},
-				parryannounce = {type = "toggle", name = format(L["Announce %s"], self.localeName).." (POR DEFECTO BANDA)", order = 10, width = "double", get = function() return M.parryannounce end, set = function(_, v) M.parryannounce = v end},
+				parryannounce = {type = "toggle", name = format(L["Announce %s"], self.localeName).." (BANDA)", order = 10, width = "double", get = function() return M.parryannounce end, set = function(_, v) M.parryannounce = v end},
 				parrychannel = {type = "select", name = L["Channel"], values = {AUTO = L["Instance"], SELF = L["Self"]}, order = 20, width = "double", get = function() return M.parrychannel end, set = function(_, v) M.parrychannel = v end},
 				sep2 = {type = "description", name = " ", width = "full", order = 25},
 				onlyDragons = {type = "toggle", name = "Solo Dragones", order = 30, width = "full", get = function() return M.onlyDragons end, set = function(_, v) M.onlyDragons = v end},
