@@ -11,7 +11,7 @@
 
 ### 💀 ¿Qué tiene que bkader NO tiene?
 
-| Feature | bkader Skada | KadeSkada |
+| Feature | bkader Skada | Naerzone|
 | :--- | :--- | :--- |
 | **Sindragosa P3 Magia Tracking** | ❌ No | ✅ `Magia 8 Dañó 13483700 Mató 2 7:15,35s` |
 | **No flamea al romper tumbas** | ❌ Te dice flamer por romper | ✅ Fix Ice Tomb 70157 |
