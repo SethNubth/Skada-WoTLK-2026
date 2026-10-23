@@ -7,7 +7,17 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, _, M, O)
 	local classfmt = Skada.classcolors.format
 	local mode_cols = nil
 
-	-- SethNubth: Formato 5:36,34s
+	-- Kade Fix Sindragosa P3 - IDs que NO son FriendlyFire real
+	local ICE_TOMB_IGNORE = {
+		[70157] = true, -- Ice Tomb - Debuff
+		[71057] = true, -- Ice Tomb
+		[70126] = true, -- Frost Beacon
+		[70213] = true, -- Ice Tomb damage / explosion al romper
+		[71056] = true, -- Ice Tomb explosion
+		[57829] = true, -- Backlash por romper tumba
+		[70219] = true, -- Frost Bomb (Sindragosa P3)
+	}
+
 	local function FormatTimeSeth(sec)
 		if not sec then return "0:00,00s" end
 		local mins = math.floor(sec / 60)
@@ -31,7 +41,6 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, _, M, O)
 		actor.friendlyfire = (actor.friendlyfire or 0) + amount
 		set.friendlyfire = (set.friendlyfire or 0) + amount
 
-		-- Detalle con tiempo 5:36,34s
 		actor.friendlyfiredetails = actor.friendlyfiredetails or {}
 		local cTime = Skada.current and Skada.current:GetTime() or 0
 		table.insert(actor.friendlyfiredetails, {
@@ -47,7 +56,6 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, _, M, O)
 		actor.friendlyfiretargets = actor.friendlyfiretargets or {}
 		actor.friendlyfiretargets[dstName] = (actor.friendlyfiretargets[dstName] or 0) + amount
 
-		-- AVISAR EN BANDA POR DEFECTO con tiempo 5:36,34s
 		if M.friendlyfireannounce and set ~= Skada.total and amount >= (M.friendlyfire_threshold or 5000) then
 			local msg = format("%s hizo Friendly Fire a %s - %d con %s - %s [Total: %d]", srcName, dstName, amount, spellName or "Melee", FormatTimeSeth(cTime), actor.friendlyfire)
 			Skada:SendChat(msg, M.friendlyfirechannel, "preset")
@@ -56,10 +64,15 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, _, M, O)
 
 	local function friendlyfire_event(t)
 		if not t.srcName or not t.dstName then return end
-		if t.srcName == t.dstName then return end -- no self
+		if t.srcName == t.dstName then return end
 		local amount = t.amount or 0
 		if amount <= 0 then return end
 		
+		-- Kade Fix P3 Sindragosa: Ignorar daño de/ hacia Tumba Helada
+		if t.spellId and ICE_TOMB_IGNORE[t.spellId] then return end
+		if t.extraSpellId and ICE_TOMB_IGNORE[t.extraSpellId] then return end
+		if t.spellName and (t.spellName:find("Ice Tomb") or t.spellName:find("Tumba Helada") or t.spellName:find("Frost Bomb")) then return end
+
 		local actorid, actorname, actorflags = Skada:FixMyPets(t.srcGUID, t.srcName, t.srcFlags)
 		Skada:DispatchSets(log_friendlyfire, actorname, actorid, actorflags, t.dstName, amount, t.spellId, t.spellName)
 	end
@@ -140,7 +153,7 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, _, M, O)
 
 	function mode:OnInitialize()
 		M.friendlyfirechannel = M.friendlyfirechannel or "AUTO"
-		if M.friendlyfireannounce == nil then M.friendlyfireannounce = true end -- POR DEFECTO BANDA ON
+		if M.friendlyfireannounce == nil then M.friendlyfireannounce = true end
 		if M.friendlyfire_threshold == nil then M.friendlyfire_threshold = 5000 end
 		if M.showFriendlyDetails == nil then M.showFriendlyDetails = true end
 
