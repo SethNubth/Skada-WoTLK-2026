@@ -1,2 +1,13 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Lua y XML siempre en LF (Linux) para que WoW los lea bien
+*.lua text eol=lf
+*.xml text eol=lf
+*.toc text eol=lf
+
+# Imágenes y fuentes en binario, que no las toque
+*.tga binary
+*.blp binary
+*.ttf binary
+*.otf binary
